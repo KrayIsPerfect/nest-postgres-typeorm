@@ -7,11 +7,11 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthenticationModule } from './authentication/authentication.module';
 import { APP_FILTER } from '@nestjs/core';
 import { ExceptionsLoggerFilter } from './utils/exceptionsLogger.filter';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 @Module({
   imports: [
-    PostsModule,
-    UsersModule,
+    // config
     AuthenticationModule,
     ConfigModule.forRoot({
       validationSchema: Joi.object({
@@ -26,6 +26,11 @@ import { ExceptionsLoggerFilter } from './utils/exceptionsLogger.filter';
       }),
     }),
     DatabaseModule,
+
+    // db
+    PostsModule,
+    UsersModule,
+    CategoriesModule,
   ],
   controllers: [],
   providers: [
