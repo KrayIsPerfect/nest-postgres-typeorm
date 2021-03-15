@@ -13,6 +13,7 @@ import { CreatePostDto } from './dto/posts.create.dto';
 import { UpdatePostDto } from './dto/posts.update.dto';
 import JwtAuthenticationGuard from '../../authentication/jwt-authentication.guard';
 import { ApiTags } from '@nestjs/swagger';
+import { FindOneParams } from '../../utils/findOneParam';
 
 @Controller('posts')
 @ApiTags('Posts')
@@ -25,7 +26,7 @@ export default class PostsController {
   }
 
   @Get(':id')
-  getPostById(@Param('id') id: string) {
+  getPostById(@Param('id') id: FindOneParams) {
     return this.postsService.getPostById(Number(id));
   }
 
