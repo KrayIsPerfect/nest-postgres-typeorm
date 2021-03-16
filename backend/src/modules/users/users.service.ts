@@ -3,11 +3,12 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Connection, Repository } from 'typeorm';
 import User from './user.entity';
 import CreateUserDto from './dto/users.create.dto';
 import { FilesService } from '../files/files.service';
@@ -17,6 +18,8 @@ import * as bcrypt from 'bcrypt';
 @Injectable()
 export class UsersService {
   constructor(
+    @Inject(Connection)
+    private readonly connection: Connection,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @Inject(FilesService)
@@ -54,34 +57,66 @@ export class UsersService {
   }
 
   async addAvatar(userId: number, imageBuffer: Buffer, filename: string) {
+    const queryRunner = this.connection.createQueryRunner();
+
     const user = await this.getById(userId);
-    if (user.avatar) {
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      if (user.avatar) {
+        await this.usersRepository.update(userId, {
+          ...user,
+          avatar: null,
+        });
+        await this.filesService.deletePublicFileWithQueryRunner(
+          user.avatar.id,
+          queryRunner,
+        );
+      }
+      const avatar = await this.filesService.uploadPublicFile(
+        imageBuffer,
+        filename,
+      );
       await this.usersRepository.update(userId, {
         ...user,
-        avatar: null,
+        avatar,
       });
-      await this.filesService.deletePublicFile(user.avatar.id);
+      await queryRunner.commitTransaction();
+      return avatar;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new InternalServerErrorException();
+    } finally {
+      await queryRunner.release();
     }
-    const avatar = await this.filesService.uploadPublicFile(
-      imageBuffer,
-      filename,
-    );
-    await this.usersRepository.update(userId, {
-      ...user,
-      avatar,
-    });
-    return avatar;
   }
 
   async deleteAvatar(userId: number) {
+    const queryRunner = this.connection.createQueryRunner();
+
     const user = await this.getById(userId);
     const fileId = user.avatar?.id;
     if (fileId) {
-      await this.usersRepository.update(userId, {
-        ...user,
-        avatar: null,
-      });
-      await this.filesService.deletePublicFile(fileId);
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        await queryRunner.manager.update(User, userId, {
+          ...user,
+          avatar: null,
+        });
+        await this.filesService.deletePublicFileWithQueryRunner(
+          fileId,
+          queryRunner,
+        );
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw new InternalServerErrorException();
+      } finally {
+        await queryRunner.release();
+      }
     }
   }
 
