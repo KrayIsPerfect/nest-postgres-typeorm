@@ -15,9 +15,11 @@ import JwtAuthenticationGuard from '../../authentication/jwt-authentication.guar
 import { FindOneParams } from '../../utils/findOneParams';
 import CreateCategoryDto from './dto/categories.create.dto';
 import UpdateCategoryDto from './dto/categories.update.dto';
+import { ApiTags } from '@nestjs/swagger';
 
 @Controller('categories')
 @UseInterceptors(ClassSerializerInterceptor)
+@ApiTags('Categories')
 export default class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
